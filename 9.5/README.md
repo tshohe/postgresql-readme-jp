@@ -3,6 +3,7 @@
 以下ファイルについて格納します。
 
 |No.|ファイルパス|概要|行数|
+| --- | --- | --- | --- |
 |1|README|PostgreSQLの概要|27|
 |2|README.git|gitリポジトリにINSTALLファイルがない説明|14|
 |3|contrib/README|contribツールの概要(詳細はドキュメントに移管)|28|
