@@ -69,6 +69,3 @@
 |62|src/tools/pginclude/README|開発用ツール（pginclude:#includeクリーンアップ）|55||
 |63|src/tools/pgindent/README|開発用ツール（pgindent:インデント整形）|113||
 |64|src/tutorial/README|SQLチュートリアル|16||
-
-## ルール
-+ ファイル名はファイルパスから"/"を抜いたものに_jaをつけたもの。
