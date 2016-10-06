@@ -1,0 +1,28 @@
+パーサ
+======
+
+このディレクトリは字句解析及びSQLクエリの構文解析だけではありません。
+オプティマイザ/エグゼキュータに渡される多様で複雑なクエリのための
+クエリ構造体の構築も行います。
+
+parser.c        ここから始まります
+scan.l          クエリを字句に分解します
+scansup.c       入力文字列のエスケープを扱います
+kwlookup.c      特定の字句にキーワードを入れます
+keywords.c      標準キーワードのテーブル
+gram.y          字句を解析し未加工の構文解析木を生成します
+analyze.c       最適化可能クエリのための最上位の構文解析分析
+parse_agg.c     右のような集約関数を扱う SUM(col1),  AVG(col2), ...
+parse_clause.c  右のような句を扱う WHERE, ORDER BY, GROUP BY, ...
+parse_coerce.c  異なるデータ型へ強要する式を扱います
+parse_collate.c 完了した式の中で照合順序情報を割り当てます
+parse_cte.c     共通テーブル式を扱います（WITH句）
+parse_expr.c    右のような式を扱います col, col + 3, x = 3 or x = 4
+parse_func.c    関数、テーブル列、列識別子を扱います
+parse_node.c    多様な構造体のためのノードを作成します
+parse_oper.c    式内の演算子を扱います
+parse_param.c   引数を扱います（コアバックエンドで使用される場合）
+parse_relation.c テーブル、列の扱いのためのルーチンをサポートします
+parse_target.c  クエリの結果リストを扱います
+parse_type.c    データ型の扱いのためのルーチンをサポートします
+parse_utilcmd.c ユーティリティコマンド（実行時に使われる）に対する構文解析分析
