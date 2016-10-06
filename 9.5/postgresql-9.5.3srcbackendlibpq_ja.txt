@@ -1,0 +1,74 @@
+src/backend/libpq/README.SSL
+
+SSL
+===
+
+>From the servers perspective:
+サーバから見た場合:
+
+
+  Receives StartupPacket
+  開始パケット受信
+           |
+           |
+ (Is SSL_NEGOTIATE_CODE?) -----------  Normal startup
+ (SSL_NEGOTIATE_CODEか？)              通常開始
+           |                  No
+           |
+           | Yes
+           |
+           |
+ (Server compiled with USE_SSL?) ------- Send 'N'
+ (USE_SSLを定義してコンパイルしたか？)   'N' 送信
+           |                       No        |
+           |                                 |
+           | Yes                         Normal startup
+　　　　　　　　　　　　　　　　　　　　 通常開始
+           |
+           |
+        Send 'S'
+　　　　'S' 送信
+           |
+           |
+      Establish SSL
+      SSL確立
+           |
+           |
+      Normal startup
+　　　通常開始
+
+
+
+
+>From the clients perspective (v6.6 client _with_ SSL):
+クライアントから見た場合(v6.6 SSLを利用したクライアント):
+
+      Connect
+　　　接続
+         |
+         |
+  Send packet with SSL_NEGOTIATE_CODE
+  SSL_NEGOTIATE_CODEを付与したパケットを送付
+         |
+         |
+  Receive single char  ------- 'S' -------- Establish SSL
+　単体文字を受信               'S'          SSL確立
+         |                                       |
+         | '<else>'                              |
+         |                                  Normal startup
+　　　　　　　　　　　　　　　　　　　　　　通常開始
+         |
+         |
+   Is it 'E' for error  ------------------- Retry connection
+         |                  Yes             without SSL
+　 それはエラーを表す'E'か                  SSL無しで接続を再試行
+         | No
+         |
+   Is it 'N' for normal ------------------- Normal startup
+　 それは通常を表す'N'か                    通常開始
+         | No                  Yes
+         |
+   Fail with unknown
+　 不明で失敗
+
+---------------------------------------------------------------------------
