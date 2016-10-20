@@ -1,0 +1,99 @@
+src/test/thread/README
+
+Threading
+=========
+
+スレッディング
+
+
+This program is run by configure to determine if threading is
+properly supported on the platform.
+
+このプログラムはスレッドが正常にプラットフォームでサポートされているか
+を判断する為に定めた構成によって動作します。
+
+
+You can run the program manually to see details, which shows if your
+native libc functions are thread-safe, or if we use *_r functions or
+thread locking.
+
+あなたは詳細を見る為に手動でプログラムを動かす事が出来ます。そして、
+それはあなた本来のlibc機能のスレッドセーフかどうかや我々が使う*_r機能
+やスレッドのロックを使用している場合に見えます。
+
+
+To use this program manually, you must:
+
+	o run "configure"
+	o compile the main source tree
+	o compile and run this program
+
+
+このプログラムを手動で使用する場合、次の事が必要:
+
+	o "configure"の設定
+	o mainのソースツリーをコンパイル
+	o このプログラムのコンパイルと実行
+
+
+If your platform requires special thread flags that are not tested by
+/config/acx_pthread.m4, add PTHREAD_CFLAGS and PTHREAD_LIBS defines to
+your template/${port} file.
+
+あなたのプラットフォームが/config/acx_pthread.m4でテストされていない
+特殊なスレッドフラグが必要な場合、template/${port}ファイルに
+PTHREAD_CFLAGSとPTHREAD_LIBS定義を追加します。
+
+
+Windows Systems
+===============
+
+Windowsシステム
+
+Windows systems do not vary in their thread-safeness in the same way that
+other systems might, nor do they generally have pthreads installed, hence
+on Windows this test is skipped by the configure program (pthreads is
+required by the test program, but not PostgreSQL itself). If you do wish
+to test your system however, you can do so as follows:
+
+Windowsシステムは同様の方法ではスレッドセーフの変更は出来ませんが、
+他のシステムであれば、一般的ではないがpthreadsをインストールした後、
+Windows上でプログラムの設定によりこのテストをスキップする事が出来ます。
+(pthreadsはこのテストプログラムに必要ですが、PostgreSQL自体には必要
+ありません。)もし、あなたのシステムをテストしたいのであれば、以下の
+通りにする事が出来ます。
+
+
+1) Install pthreads in you Mingw/Msys environment. You can download pthreads
+   from ftp://sources.redhat.com/pub/pthreads-win32/.
+
+1) Mingw/Msys環境にpthreadsをインストールします。ftp://sources.redhat.com/pub/pthreads-win32/ から
+   pthreadsをダウンロードして下さい。
+
+
+2) Build the test program:
+
+2) テストプログラムを構築します。
+
+   gcc -o thread_test.exe \
+    -D_REENTRANT \
+    -D_THREAD_SAFE \
+    -D_POSIX_PTHREAD_SEMANTICS \
+    -I../../../src/include/port/win32 \
+    thread_test.c \
+    -lws2_32 \
+    -lpthreadgc2
+
+
+3) Run thread_test.exe. You should see output like:
+
+3) thread_test.exeを実行します。以下の様に出力されるはずです:
+
+
+    dpage@PC30:/cvs/pgsql/src/tools/thread$ ./thread_test
+    Your GetLastError() is thread-safe.
+    Your system uses strerror() which is thread-safe.
+    getpwuid_r()/getpwuid() are not applicable to Win32 platforms.
+    Your system uses gethostbyname which is thread-safe.
+
+    Your platform is thread-safe.

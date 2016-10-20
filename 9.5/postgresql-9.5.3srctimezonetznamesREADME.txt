@@ -1,0 +1,71 @@
+src/timezone/tznames/README
+
+tznames
+=======
+
+tznames
+
+
+This directory contains files with timezone sets for PostgreSQL.  The problem
+is that time zone abbreviations are not unique throughout the world and you
+might find out that a time zone abbreviation in the `Default' set collides
+with the one you wanted to use.  This can be fixed by selecting a timezone
+set that defines the abbreviation the way you want it.  There might already
+be a file here that serves your needs.  If not, you can create your own.
+
+このディレクトリはPostgreSQLの為のタイムゾーンセットがあるファイルが
+含まれています。問題はそのタイムゾーンの略語が世界中で固有でなく、
+'Default'セットにおけるタイムゾーンの略語があなたの使用したかった略語
+と衝突するのを見つけるかもしれません。これはあなたが望む略語を定義
+するタイムゾーンを選択する事により解決する事が出来ます。既に、あなたの
+ニーズに役立つファイルがここにあるかもしれません。もしそうでないなら、
+独自に作成する事が出来ます。
+
+
+In order to use one of these files, you need to set
+
+   timezone_abbreviations = 'xyz'
+
+in any of the usual ways for setting a parameter, where xyz is the filename
+that contains the desired time zone abbreviations.
+
+これらのファイルの1つを使用するには、以下を設定する必要があります
+
+   timezone_abbreviations = 'xyz'
+
+パラメータを設定する為の通常の方法のいずれかにおいて、xyzは希望の
+タイムゾーンの略語を含むファイル名です。
+
+If you do not find an appropriate set of abbreviations for your geographic
+location supplied here, please report this to <pgsql-hackers@postgresql.org>.
+Your set of time zone abbreviations can then be included in future releases.
+For the time being you can always add your own set.
+
+ここに供給された地理的な位置に適切な略語のセットが見つからない場合は、
+<pgsql-hackers@postgresql.org>にこれを報告して下さい。あなたのタイム
+ゾーンの略語のセットは将来のリリースに含める事が出来ます。時間については、
+常に独自のセットを追加する事が出来ます。
+
+
+Typically a custom abbreviation set is made by including the `Default' set
+and then adding or overriding abbreviations as necessary.  For examples,
+see the `Australia' and `India' files.
+
+通常、カスタムな略語セットは'Default'セットに含められ、その後に必要に
+応じて追加またはオーバーライドされていきます。例えば、'Australia'や
+'India'のファイルを参照して下さい。
+
+
+The files named Africa.txt, etc, are not intended to be used directly as
+time zone abbreviation files. They contain reference definitions of time zone
+abbreviations that can be copied into a custom abbreviation file as needed.
+Note that these files (*.txt) are already a subset of the IANA timezone
+database files: we tried to list only those time zone abbreviations that
+(according to the IANA timezone database) appear to be still in use.
+
+直接タイムゾーンの略語ファイルとしてAfrica.txtというファイルなどが使用
+される事を意図していません。それらは必要に応じてカスタムな略語ファイルの
+中にコピー出来るタイムゾーンの参照定義を含んでいます。これらのファイル
+(*.txt)が既にIANAタイムゾーンデータベースファイルの部分集合である事に
+注意して下さい: 我々は(IANAのタイムゾーンデータベースによると)まだ使用
+中であると見られるタイムゾーンの略語だけを記載しようとしました。

@@ -1,0 +1,806 @@
+src/backend/access/gin/README
+
+Gin for PostgreSQL
+==================
+
+PostgreSQLの為のGin
+===================
+
+
+Gin was sponsored by jfg://networks (http://www.jfg-networks.com/)
+
+Ginは jfg://networks (http://www.jfg-networks.com/) が後援しました。
+
+
+Gin stands for Generalized Inverted Index and should be considered as a genie,
+not a drink.
+
+Ginは Generalized Inverted Index の略で、飲み物ではなく、精霊として考慮
+に値します。
+
+
+Generalized means that the index does not know which operation it accelerates.
+It instead works with custom strategies, defined for specific data types (read
+"Index Method Strategies" in the PostgreSQL documentation). In that sense, Gin
+is similar to GiST and differs from btree indices, which have predefined,
+comparison-based operations.
+
+一般的にインデックスは加速させる動作を知らない事を意味します。それは代わりに
+特定のデータ型の為に定義されたカスタム戦略と連携して動作します(PostgreSQLドキュ
+メントの"Index Method Strategies"に書かれています)。その意味で、GinはGiSTと
+同様のものであり、事前に定義され、比較ベースの動作を持っているB-Treeインデックス
+とは異なります。
+
+
+An inverted index is an index structure storing a set of (key, posting list)
+pairs, where 'posting list' is a set of heap rows in which the key occurs.
+(A text document would usually contain many keys.)  The primary goal of
+Gin indices is support for highly scalable, full-text search in PostgreSQL.
+
+転置インデックスは'posting list'のキーが存在する1組のヒープ行である(キーと
+ポスティングリストの)ペアの組を格納するインデックス構造です。(通常、テキスト
+ドキュメントは多くのキーを含んでいるでしょう)。Ginインデックス開発の主な
+目的は、スケーラビリティが高い全文検索のサポートをPostgreSQLで作成する事でした。
+
+
+A Gin index consists of a B-tree index constructed over key values,
+where each key is an element of some indexed items (element of array, lexeme
+for tsvector) and where each tuple in a leaf page contains either a pointer to
+a B-tree over item pointers (posting tree), or a simple list of item pointers
+(posting list) if the list is small enough.
+
+Ginインデックスは各キーが幾つかのインデックスを付けられた項目の要素であり
+(arraynの要素、tsvectorの為の語彙素)、リーフページ内の各タプルはリストが
+十分に小さい場合、項目ポインタを超えるB-Treeへのポインタ(ポスティングポインタ)、
+または項目ポインタの単純なリスト(ポスティングリスト)のいずれかを含む、キー値の
+上で構成されたB-Treeインデックスから成ります。
+
+
+Note: There is no delete operation in the key (entry) tree. The reason for
+this is that in our experience, the set of distinct words in a large corpus
+changes very slowly.  This greatly simplifies the code and concurrency
+algorithms.
+
+注記: キー(項目)ツリーには削除操作はありません。この理由は、我々の経験では
+大規模なコーパス内の異なった単語のセットは非常にゆっくりと変化するからです。
+これは、コードと並列処理アルゴリズムを大幅に簡素化します。
+
+
+Core PostgreSQL includes built-in Gin support for one-dimensional arrays
+(eg. integer[], text[]).  The following operations are available:
+
+  * contains: value_array @> query_array
+  * overlaps: value_array && query_array
+  * is contained by: value_array <@ query_array
+
+PostgreSQLのコアには一次元配列の為のGinサポートが内蔵されています(eg. 
+integer[]、text[])。次の操作が可能です:
+
+  * contains: value_array @> query_array
+  * overlaps: value_array && query_array
+  * is contained by: value_array <@ query_array
+
+
+Synopsis
+--------
+
+概要
+--------
+
+
+=# create index txt_idx on aa using gin(a);
+
+Features
+--------
+
+  * Concurrency
+  * Write-Ahead Logging (WAL).  (Recoverability from crashes.)
+  * User-defined opclasses.  (The scheme is similar to GiST.)
+  * Optimized index creation (Makes use of maintenance_work_mem to accumulate
+    postings in memory.)
+  * Text search support via an opclass
+  * Soft upper limit on the returned results set using a GUC variable:
+    gin_fuzzy_search_limit
+
+特徴
+--------
+  * 同時並行性
+  * ログ先行書き込み(WAL)。(クラッシュからの復元可能性。)
+  * ユーザ定義クラス。(スキーマはGiSTに似ています。)
+  * インデックス作成の最適化(メモリにポスティングを蓄積する為に
+    maintenance_work_memを使用する。)
+  * opclassを介して全文検索をサポート
+  * GUC変数を使用して、返却される結果セットのソフト上限:
+    gin_fuzzy_search_limit
+
+
+Gin Fuzzy Limit
+---------------
+
+Ginのあいまいな限度
+---------------
+
+
+There are often situations when a full-text search returns a very large set of
+results.  Since reading tuples from the disk and sorting them could take a
+lot of time, this is unacceptable for production.  (Note that the search
+itself is very fast.)
+
+全文検索が非常に大きな結果セットを返却する状況が度々あります。以降、ディスク
+からタプルを読み込み、それらをソートするのに多くの時間が掛かるかも知れず、
+実運用では受け入れられません。(検索自体は非常に高速である事に注意して下さい。)
+
+
+Such queries usually contain very frequent lexemes, so the results are not
+very helpful. To facilitate execution of such queries Gin has a configurable
+soft upper limit on the size of the returned set, determined by the
+'gin_fuzzy_search_limit' GUC variable.  This is set to 0 by default (no
+limit).
+
+通常、このようなクエリは非常に頻繁に語彙素が含まれているので、結果はそれ程
+役に立っていません。その様なクエリの実行を容易にする為にGinは
+'gin_fuzzy_search_limit'GUC変数によって決定され、返却されたセットのサイズに
+選択可能なソフト上限を持っています。これはデフォルトで0に設定されます(制限なし)。
+
+
+If a non-zero search limit is set, then the returned set is a subset of the
+whole result set, chosen at random.
+
+非ゼロの検索制限が設定されている場合、返却されたセットはランダムに選択された
+結果セット全体の一部です。
+
+
+"Soft" means that the actual number of returned results could differ
+from the specified limit, depending on the query and the quality of the
+system's random number generator.
+
+"Soft"は、問い合わせとシステムの乱数ジェネレータの品質に依存して、返される
+結果の実際の数が指定した上限より多少異なることを意味します。
+
+
+From experience, a value of 'gin_fuzzy_search_limit' in the thousands
+(eg. 5000-20000) works well.  This means that 'gin_fuzzy_search_limit' will
+have no effect for queries returning a result set with less tuples than this
+number.
+
+経験上、数千（eg. 5000-20000）の'gin_fuzzy_search_limit'値がうまく動作します。
+これは'gin_fuzzy_search_limit'がこの数より少ないタプルで結果セットを返却する
+クエリに対しては効果がない事を意味します。
+
+
+Index structure
+---------------
+
+インデックス構造
+---------------
+
+
+The "items" that a GIN index indexes are composite values that contain
+zero or more "keys".  For example, an item might be an integer array, and
+then the keys would be the individual integer values.  The index actually
+stores and searches for the key values, not the items per se.  In the
+pg_opclass entry for a GIN opclass, the opcintype is the data type of the
+items, and the opckeytype is the data type of the keys.  GIN is optimized
+for cases where items contain many keys and the same key values appear
+in many different items.
+
+GINインデックスが索引を付ける"items"はゼロまたはそれ以上の"keys"を含む複合
+値です。例えば、項目は整数型配列であるかもしれないし、その上キーは個々の整数
+です。インデックスは実際には保存され、キー値を検索し、それ自体が項目では
+ありません。GINのopclassの為のpg_opclassに項目では、opcintypeが項目に関する
+データ型で、opckeytypeがキーに関するデータ型です。GINは項目が多くのキーを
+含む為に最適化され、そして、同じキー値は多くの異なった項目に現れます。
+
+
+A GIN index contains a metapage, a btree of key entries, and possibly
+"posting tree" pages, which hold the overflow when a key entry acquires
+too many heap tuple pointers to fit in a btree page.  Additionally, if the
+fast-update feature is enabled, there can be "list pages" holding "pending"
+key entries that haven't yet been merged into the main btree.  The list
+pages have to be scanned linearly when doing a search, so the pending
+entries should be merged into the main btree before there get to be too
+many of them.  The advantage of the pending list is that bulk insertion of
+a few thousand entries can be much faster than retail insertion.  (The win
+comes mainly from not having to do multiple searches/insertions when the
+same key appears in multiple new heap tuples.)
+
+GINインデックスはメタページ、キー項目の為のbtree、そして場合によっては
+"posting tree"ページを含んで、キー項目を取得する時にbtreeページに収まる様に
+大量のヒープタプルポインタを取得し、オーバフローを保持します。さらに、もし
+高速更新機能が有効になっているならば、メインのbtreeに合併されていない
+"pending"キー項目を保持する"list pages"が存在出来ます。検索を行う時に、
+リストページはリニアにスキャンする必要があるので、保留中の項目はそれら
+あまりに多くの事を得る前にメインのbtreeに合併する必要があります。
+
+
+Key entries are nominally of the same IndexTuple format as used in other
+index types, but since a leaf key entry typically refers to multiple heap
+tuples, there are significant differences.  (See GinFormTuple, which works
+by building a "normal" index tuple and then modifying it.)  The points to
+know are:
+
+キー項目は他のインデックスの種類と名目上同じIndexTuple形式を使用されますが、
+リーフキー項目は通常、複数のヒープタプルを参照しているので、かなりの違いが
+あります。(GinFormTupleを参照して下さい。それらは"normal"インデックスタプルを
+構築し、それを変更する事により動作しています。)知っているポイントは以下の
+通りです:
+
+
+* In a single-column index, a key tuple just contains the key datum, but
+in a multi-column index, a key tuple contains the pair (column number,
+key datum) where the column number is stored as an int2.  This is needed
+to support different key data types in different columns.  This much of
+the tuple is built by index_form_tuple according to the usual rules.
+The column number (if present) can never be null, but the key datum can
+be, in which case a null bitmap is present as usual.  (As usual for index
+tuples, the size of the null bitmap is fixed at INDEX_MAX_KEYS.)
+
+* 単一列に対するインデックスでは、キータプルは単にキーデータムが含まれて
+いますが、複数列に対するインデックスでは、キータプルは列番号がint2として
+格納され、組み合わせ(列番号、キーデータム)が含まれています。これは、異なる
+列に異なるキーのデータ型をサポートするのに必要です。このタプルの多くは
+通常の規則に従ってindex_form_tupleによって構築されます。列番号はNULLである
+はずがありませんが(存在する場合)、キーデータムはその場合にはNULLビットマップ
+が通常通り存在する事が出来ます。(インデックスタプルの為に通常、NULLビット
+マップの大きさはINDEX_MAX_KEYSに固定されています。)
+
+
+* If the key datum is null (ie, IndexTupleHasNulls() is true), then
+just after the nominal index data (ie, at offset IndexInfoFindDataOffset
+or IndexInfoFindDataOffset + sizeof(int2)) there is a byte indicating
+the "category" of the null entry.  These are the possible categories:
+	1 = ordinary null key value extracted from an indexable item
+	2 = placeholder for zero-key indexable item
+	3 = placeholder for null indexable item
+Placeholder null entries are inserted into the index because otherwise
+there would be no index entry at all for an empty or null indexable item,
+which would mean that full index scans couldn't be done and various corner
+cases would give wrong answers.  The different categories of null entries
+are treated as distinct keys by the btree, but heap itempointers for the
+same category of null entry are merged into one index entry just as happens
+with ordinary key entries.
+
+* キーデータムがNULL(ie. IndexTupleHasNulls()がtrue)であるなら、名目上の
+インデックスデータ(ie. IndexInfoFindDataOffset または IndexInfoFindDataOffset
+ + sizeof(int2))の直後に、NULL項目の"category"を示している1バイトがあります。
+これらは可能性があるカテゴリです:
+	1 = インデックス可能なアイテムから抽出された通常のNULLキー値
+	2 = ゼロキーインデックス可能なアイテムのプレースホルダ
+	3 = NULLインデックス可能なアイテムのプレースホルダ
+そうでなければインデックス項目が全くの空かNULLインデックス可能なアイテムの為に
+ないので、プレースホルダのNULL項目はインデックスに挿入され、そしてそれは完全な
+インデックススキャンが出来ないので、各種境界条件で誤った答えをする事を意味します。
+NULL項目の異なったカテゴリはbtreeによって異なったキーとして扱われますが、NULL
+項目の同じカテゴリのヒープアイテムポインタは、ちょうど通常のキー項目で起こる様に
+一つのインデックス項目に合併されています。
+
+
+* In a key entry at the btree leaf level, at the next SHORTALIGN boundary,
+there is a list of item pointers, in compressed format (see Posting List
+Compression section), pointing to the heap tuples for which the indexable
+items contain this key. This is called the "posting list".
+
+* btreeリーフレベルのキー項目において、次のSHORTALIGN境界、それらのアイテム
+ポインタのリスト、圧縮フォーマット(ポスティングリストの圧縮セクションを参照)、
+インデックス可能なアイテムはこのキーが含まれているヒープタプルを指します。
+これは"posting list"と呼ばれています。
+
+
+If the list would be too big for the index tuple to fit on an index page, the
+ItemPointers are pushed out to a separate posting page or pages, and none
+appear in the key entry itself.  The separate pages are called a "posting
+tree" (see below); Note that in either case, the ItemPointers associated with
+a key can easily be read out in sorted order; this is relied on by the scan
+algorithms.
+
+インデックスタプルがインデックスページに収まるにはあまりにも大きなリストならば、
+アイテムポインタは別々のポスティングページかページに押し出され、
+キー項目自身には現れません。別々のページは"posting tree"と呼ばれます(以下を
+見て下さい); いずれの場合も、キーに関連付けられたアイテムポインタは分類された
+順序で簡単に読み出される事が出来ます。これは、スキャンアルゴリズムによって
+信頼されています。
+
+
+* The index tuple header fields of a leaf key entry are abused as follows:
+
+* リーフキー項目のインデックスタプルのヘッダフィールドは、以下の通りに乱用
+されます。
+
+
+1) Posting list case:
+
+1) ポスティングリストケース:
+
+
+* ItemPointerGetBlockNumber(&itup->t_tid) contains the offset from index
+  tuple start to the posting list.
+  Access macros: GinGetPostingOffset(itup) / GinSetPostingOffset(itup,n)
+
+* ItemPointerGetBlockNumber(&itup->t_tid)はポスティングリストの開始インデックス
+  タプルからのオフセットが含まれています。
+  アクセスマクロ: GinGetPostingOffset(itup) / GinSetPostingOffset(itup,n)
+
+
+* ItemPointerGetOffsetNumber(&itup->t_tid) contains the number of elements
+  in the posting list (number of heap itempointers).
+  Access macros: GinGetNPosting(itup) / GinSetNPosting(itup,n)
+
+* ItemPointerGetOffsetNumber(&itup->t_tid)はポスティングリストの要素数が含まれて
+  います(ヒープアイテムポインタ数)。
+  アクセスマクロ: GinGetNPosting(itup) / GinSetNPosting(itup,n)
+
+
+* If IndexTupleHasNulls(itup) is true, the null category byte can be
+  accessed/set with GinGetNullCategory(itup,gs) / GinSetNullCategory(itup,gs,c)
+
+* IndexTupleHasNulls(itup)が真であるならば、GinGetNullCategory(itup,gs) 
+  / GinSetNullCategory(itup,gs,c)と共にNULLカテゴリバイトにアクセス/セット出来ます。
+
+
+* The posting list can be accessed with GinGetPosting(itup)
+
+* GinGetPosting(itup)と共にポスティングリストにアクセス出来ます。
+
+
+* If GinITupIsCompressed(itup), the posting list is stored in compressed
+  format. Otherwise it is just an array of ItemPointers. New tuples are always
+  stored in compressed format, uncompressed items can be present if the
+  database was migrated from 9.3 or earlier version.
+
+* GinITupIsCompressed(itup)であれば、ポスティングリストは圧縮形式で格納されます。
+  そうでなければ、それはただの一連のアイテムポインタです。新しいタプルは常に
+  圧縮形式で格納されます、データベースが9.3またはそれ以前のバージョンから移行
+  された場合、圧縮されていない項目が存在する事があります。
+  
+
+
+2) Posting tree case:
+
+2) ポスティングツリーケース:
+
+
+* ItemPointerGetBlockNumber(&itup->t_tid) contains the index block number
+  of the root of the posting tree.
+  Access macros: GinGetPostingTree(itup) / GinSetPostingTree(itup, blkno)
+
+* ItemPointerGetBlockNumber(&itup->t_tid)はポスティングツリーのrootの
+  インデックスブロック数が含まれています。
+  アクセスマクロ: GinGetPostingTree(itup) / GinSetPostingTree(itup, blkno)
+
+
+* ItemPointerGetOffsetNumber(&itup->t_tid) contains the magic number
+  GIN_TREE_POSTING, which distinguishes this from the posting-list case
+  (it's large enough that that many heap itempointers couldn't possibly
+  fit on an index page).  This value is inserted automatically by the
+  GinSetPostingTree macro.
+
+* ItemPointerGetOffsetNumber(&itup->t_tid)はマジックナンバ GIN_TREE_POSTINGを
+  含んでおり、ポスティングリストケースからこれを区別します(それは多くのヒープ
+  アイテムポインタがどうしてもインデックスページに収める事ができない、十分な
+  大きさです)。この値はGinSetPostingTreeマクロによって自動的に挿入されます。
+
+
+* If IndexTupleHasNulls(itup) is true, the null category byte can be
+  accessed/set with GinGetNullCategory(itup,gs) / GinSetNullCategory(itup,gs,c)
+
+* IndexTupleHasNulls(itup)が真であるならば、GinGetNullCategory(itup,gs) 
+  / GinSetNullCategory(itup,gs,c)と共にNULLカテゴリバイトにアクセス/セット出来ます。
+
+
+* The posting list is not present and must not be accessed.
+
+* ポスティングリストは存在しなければ、アクセスしてはいけません。
+
+
+Use the macro GinIsPostingTree(itup) to determine which case applies.
+
+どのケースが適用されるかを決定する為に、マクロGinIsPostingTree(itup)を
+使用します。
+
+
+In both cases, itup->t_info & INDEX_SIZE_MASK contains actual total size of
+tuple, and the INDEX_VAR_MASK and INDEX_NULL_MASK bits have their normal
+meanings as set by index_form_tuple.
+
+どちらの場合も、itup->t_info & INDEX_SIZE_MASKはタプルの実際の合計サイズが
+含まれており、そしてindex_form_tupleによってセットされるように、
+INDEX_VAR_MASKとINDEX_NULL_MASKビットはそれらの通常の意味を持ちます。
+
+
+Index tuples in non-leaf levels of the btree contain the optional column
+number, key datum, and null category byte as above.  They do not contain
+a posting list.  ItemPointerGetBlockNumber(&itup->t_tid) is the downlink
+to the next lower btree level, and ItemPointerGetOffsetNumber(&itup->t_tid)
+is InvalidOffsetNumber.  Use the access macros GinGetDownlink/GinSetDownlink
+to get/set the downlink.
+
+btreeの非リーフレベルのインデックスタプルは、上記の様にオプションの列番号、
+キーデータム、そしてNULLカテゴリバイトを含みます。それらをポスティングリストは
+含んでいません。ItemPointerGetBlockNumber(&itup->t_tid)は次の下部のbtreeレベルへの
+ダウンリンクで、ItemPointerGetOffsetNumber(&itup->t_tid)はInvalidOffsetNumberです。
+ダウンリンクを取得/セットする為に、アクセスマクロGinGetDownlink/GinSetDownlinkを
+使用します。
+
+Index entries that appear in "pending list" pages work a tad differently as
+well.  The optional column number, key datum, and null category byte are as
+for other GIN index entries.  However, there is always exactly one heap
+itempointer associated with a pending entry, and it is stored in the t_tid
+header field just as in non-GIN indexes.  There is no posting list.
+Furthermore, the code that searches the pending list assumes that all
+entries for a given heap tuple appear consecutively in the pending list and
+are sorted by the column-number-plus-key-datum.  The GIN_LIST_FULLROW page
+flag bit tells whether entries for a given heap tuple are spread across
+multiple pending-list pages.  If GIN_LIST_FULLROW is set, the page contains
+all the entries for one or more heap tuples.  If GIN_LIST_FULLROW is clear,
+the page contains entries for only one heap tuple, *and* they are not all
+the entries for that tuple.  (Thus, a heap tuple whose entries do not all
+fit on one pending-list page must have those pages to itself, even if this
+results in wasting much of the space on the preceding page and the last
+page for the tuple.)
+
+"pending list"ページに表示されるインデックスエントリはほんの少しだけ
+違った働きをします。オプションの列番号、キーダータム、およびNULLカテゴリ
+バイトは他のGINインデックス項目と同じです。しかしながら、常にそこに待機項目に
+関連付けられたヒープアイテムポインタがあり、それは単に非GINインデックス
+の様にt_tidヘッダフィールドに格納されています。ポスティングリストはありません。
+さらに、待機リストを探すコードは、与えられたヒープタプルが連続して
+現れる為、全ての項目を引き受け、待機リストと列番号プラスキーダータムで
+ソートされます。GIN_LIST_FULLROWページフラグビットは与えられたヒープタプルの
+項目が複数の待機リストページにまたがっていないかどうかを示します。
+GIN_LIST_FULLROWをセットした場合、ページには1つまたは複数のヒープタプルの為の
+全ての項目が含まれています。GIN_LIST_FULLROWをクリアした場合、ページは1つの
+ヒープタプルだけの項目を含んでおり、そして、それらはそのタプルの為の全ての項目
+ではありません。(従って、例えばタプルの為に前にあるページや最後のページの
+大部分のスペースを無駄にする結果だとしても、項目の全てが1つの待機リストページに
+収まっていないヒープタプルは、それ自体がそれらのページを持っている必要があります。)
+
+
+Posting tree
+------------
+
+ポスティングツリー
+------------------
+
+
+If a posting list is too large to store in-line in a key entry, a posting tree
+is created. A posting tree is a B-tree structure, where the ItemPointer is
+used as the key.
+
+ポスティングリストにキー項目をインラインで格納するには大きすぎる場合、ポスティング
+ツリーが作成されます。ポスティングツリーは、B-tree構造でアイテムポインタを
+キーとして使用します。
+
+
+Internal posting tree pages use the standard PageHeader and the same "opaque"
+struct as other GIN page, but do not contain regular index tuples. Instead,
+the contents of the page is an array of PostingItem structs. Each PostingItem
+consists of the block number of the child page, and the right bound of that
+child page, as an ItemPointer. The right bound of the page is stored right
+after the page header, before the PostingItem array.
+
+内部のポスティングツリーページは、標準のPageHeaderと他のGINページと同じ"opaque"
+構造体を使用しますが、正規のインデックスタプルを含んでいません。代わりに、
+ページの内容はポスティングアイテム構造体の配列です。各ポスティングアイテムは
+子ページのブロック番号、およびアイテムポインタとして子ページの右結合で構成
+されています。ポスティングアイテム配列の前に、ページの右結合はページヘッダの
+直後に格納されます。
+
+
+Posting tree leaf pages also use the standard PageHeader and opaque struct,
+and the right bound of the page is stored right after the page header, but
+the page content comprises of a number of compressed posting lists. The
+compressed posting lists are stored one after each other, between page header
+and pd_lower. The space between pd_lower and pd_upper is unused, which allows
+full-page images of posting tree leaf pages to skip the unused space in middle
+(buffer_std = true in XLogRecData).
+
+ポスティングツリーのリーフページは標準のPageHeaderと不透明な構造体を使用します、
+そしてページの右結合は、ページヘッダ直後に格納されます、しかし、ページ内容は
+圧縮されたポスティングリストの数を包括します。圧縮されたポスティングリストは、
+ページヘッダとpd_lowerの間で交互に格納されています。pd_lowerとpd_upperとの間の
+スペースは使用しておらず、ポスティングツリーのリーフページの完全ページの
+イメージの途中の未使用スペースをスキップします(buffer_std = XLogRecDataが真)。
+
+
+The item pointers are stored in a number of independent compressed posting
+lists (also called segments), instead of one big one, to make random access
+to a given item pointer faster: to find an item in a compressed list, you
+have to read the list from the beginning, but when the items are split into
+multiple lists, you can first skip over to the list containing the item you're
+looking for, and read only that segment. Also, an update only needs to
+re-encode the affected segment.
+
+より速く伝えられたアイテムポインタへのランダムアクセスを行う為に、1つの大きな
+ものの代わりに独立している圧縮されたポスティングリストにアイテムポインタは
+格納されています(セグメントとも呼ばれる): 圧縮されたリスト内のアイテムを検索
+するには最初からリストを読み込む必要がありますが、アイテムを複数のリストに
+分割されている場合、最初に探しているアイテムを含んでいるリストまでスキップ
+する事が出来、そのセグメントだけを読む事が出来ます。また、アップデートは
+影響を受けたセグメントを再エンコードする必要があるだけです。
+
+
+Posting List Compression
+------------------------
+
+ポスティングリスト圧縮
+----------------------
+
+
+To fit as many item pointers on a page as possible, posting tree leaf pages
+and posting lists stored inline in entry tree leaf tuples use a lightweight
+form of compression. We take advantage of the fact that the item pointers
+are stored in sorted order. Instead of storing the block and offset number of
+each item pointer separately, we store the difference from the previous item.
+That in itself doesn't do much, but it allows us to use so-called varbyte
+encoding to compress them.
+
+出来るだけ多くのアイテムポインタをページに収める為に、ポスティングツリーの
+リーフページとポスティングリストを項目ツリーのリーフタプルにインラインで
+格納するのに軽量の圧縮形式を使用します。我々はアイテムポインタがソートされた
+順序で格納されているという事実を利用します。ブロック番号と各アイテムポインタの
+オフセット番号を別々に格納する代わりに、我々は前のアイテムとの違いを格納します。
+それは本来あまりしませんが、それは私達がそれらを圧縮する為に、いわゆるvarbyte
+エンコーディングを使用する事が出来ます。
+
+
+Varbyte encoding is a method to encode integers, allowing smaller numbers to
+take less space at the cost of larger numbers. Each integer is represented by
+variable number of bytes. High bit of each byte in varbyte encoding determines
+whether the next byte is still part of this number. Therefore, to read a single
+varbyte encoded number, you have to read bytes until you find a byte with the
+high bit not set.
+
+varbyteエンコードは整数をエンコードする為の方法で、大量のコストを費やして
+より小さな数値が少ないスペースを取る事を許可します。各整数は可変長のバイトで
+表されます。varbyteエンコーディングの各バイトの上位ビットは、次のバイトが
+まだこの数の一部であるかどうかを決定します。したがって、1つのvarbyteエンコードの
+数値を読む為に、上位ビットがセットされていないバイトを見付けるまでバイトを
+読まなければなりません。
+
+
+When encoding, the block and offset number forming the item pointer are
+combined into a single integer. The offset number is stored in the 11 low
+bits (see MaxHeapTuplesPerPageBits in ginpostinglist.c), and the block number
+is stored in the higher bits. That requires 43 bits in total, which
+conveniently fits in at most 6 bytes.
+
+アイテムポインタを形成しているブロック番号とオフセット番号をエンコードする時、
+単一の整数に結合されます。オフセット番号は11桁の下位ビットに格納され
+(ginpostinglist.c内のMaxHeapTuplesPerPageBits参照)、ブロック番号は上位ビットに
+格納されます。それは合計で43ビットを必要とし、そしてそれは最大6バイトに都合よく
+収まります。
+
+
+A compressed posting list is passed around and stored on disk in a
+PackedPostingList struct. The first item in the list is stored uncompressed
+as a regular ItemPointerData, followed by the length of the list in bytes,
+followed by the packed items.
+
+圧縮されたポスティングリストは、回覧され、ディスク上のPackedPostingList構造体に
+格納されます。リストの最初のアイテムは正規のItemPointerDataは非圧縮で格納されており、
+続いてバイト単位のリストの長さがあり、その後に圧縮されているアイテムが続きます。
+
+
+Concurrency
+-----------
+
+同時実行性
+----------
+
+
+The entry tree and each posting tree is a B-tree, with right-links connecting
+sibling pages at the same level. This is the same structure that is used in
+the regular B-tree indexam (invented by Lehman & Yao), but we don't support
+scanning a GIN trees backwards, so we don't need left-links.
+
+項目ツリーと各ポスティングツリーは、リンク先が同じレベルの兄弟のページを
+接続するB-treeです。これは、正規のB-treeインデックス(Lehman & Yaoによって発明された)で
+使用されているものと同じ構造ですが、我々は後方のGINツリーのスキャンする事をサポート
+していませんので、リンク先を必要としません。
+
+
+To avoid deadlocks, B-tree pages must always be locked in the same order:
+left to right, and bottom to top. When searching, the tree is traversed from
+top to bottom, so the lock on the parent page must be released before
+descending to the next level. Concurrent page splits move the keyspace to
+right, so after following a downlink, the page actually containing the key
+we're looking for might be somewhere to the right of the page we landed on.
+In that case, we follow the right-links until we find the page we're looking
+for.
+
+デッドロックを回避するには、B-treeページは常に同じ順序でロックする必要があります:
+左から右、下から上です。検索する場合、ツリーが上から下まで探索されるので、次の
+レベルに下がっていく前に親ページのロックをリリースしなければなりません。同時
+実行のページの分割はキー空間を右側へ動かすので、下向きのリンクが続いた後に実際に
+我々が探しているキーを含むページが我々が着陸したページの右側のどこかにあるかも
+しれません。その場合、我々は探しているページを見付けるまで、リンク先をたどります。
+
+
+To delete a page, the page's left sibling, the target page, and its parent,
+are locked in that order, and the page is marked as deleted. However, a
+concurrent search might already have read a pointer to the page, and might be
+just about to follow it. A page can be reached via the right-link of its left
+sibling, or via its downlink in the parent.
+
+ページを削除する為に、ページの左側の兄弟、対象ページ、およびそれらの親はその
+順序でロックされ、削除された様にページがマークされます。しかしながら、同時
+実行検索は既にページへのポインタを読むかもしれなく、ちょうどまさにそれに
+続こうとしているかもしれません。ページには、その左側の兄弟のリンク先を介して、
+または親の下向きのリンクから到達する事が出来ます。
+
+
+To prevent a backend from reaching a deleted page via a right-link, when
+following a right-link the lock on the previous page is not released until
+the lock on next page has been acquired.
+
+バックエンドがリンク先を介して削除されたページに到達するのを防ぐ為に、
+リンク先をたどる際に次のページのロックが取得されるまで、前のページの
+ロックが解除されません。
+
+
+The downlink is more tricky. A search descending the tree must release the
+lock on the parent page before locking the child, or it could deadlock with
+a concurrent split of the child page; a page split locks the parent, while
+already holding a lock on the child page. However, posting trees are only
+fully searched from left to right, starting from the leftmost leaf. (The
+tree-structure is only needed by insertions, to quickly find the correct
+insert location). So as long as we don't delete the leftmost page on each
+level, a search can never follow a downlink to page that's about to be
+deleted.
+
+下向きのリンクはより扱いにくいです。ツリーを下向きに検索するには、子を
+ロックするか子ページの同時実行分割でデッドロックが起きる前に親ページの
+ロックをリリースしなければなりません; すでに子ページのロックを保持して
+いるなら、分割ページは親をロックします。しかしながら、ポスティングツリーは
+左端のリーフから始まり、左から右へ完全に検索されるだけです。(ツリー構造は
+挿入のみが必要とされ、素早く正しい挿入位置を見付けます)。それで、我々が
+各レベルで左端のページを削除しない間は、検索が削除されようとしている
+ページへの下向きのリンクをたどる事は出来ません。
+
+
+The previous paragraph's reasoning only applies to searches, and only to
+posting trees. To protect from inserters following a downlink to a deleted
+page, vacuum simply locks out all concurrent insertions to the posting tree,
+by holding a super-exclusive lock on the posting tree root. Inserters hold a
+pin on the root page, but searches do not, so while new searches cannot begin
+while root page is locked, any already-in-progress scans can continue
+concurrently with vacuum. In the entry tree, we never delete pages.
+
+前の段落の推理は、検索とポスティングツリーにだけ当てはまります。削除ページへの
+下を向いたリンク後の挿入から保護する為に、バキュームは単純にポスティングツリーの
+ルート上の超排他的ロックを保持する事により、ポスティングツリーに全ての同時実行
+挿入をロックアウトします。挿入はルートページ上のピンを保持しますが、ルートページを
+ロックしながらの新しい検索を開始する事は出来ませんが、いずれか進行中のスキャンは
+バキュームと同時に続ける事が出来ます。項目ツリーで、我々はページを削除する事は
+ありません。
+
+
+(This is quite different from the mechanism the btree indexam uses to make
+page-deletions safe; it stamps the deleted pages with an XID and keeps the
+deleted pages around with the right-link intact until all concurrent scans
+have finished.)
+
+(これは、btree indexamがページ削除を安全にするのに使用するメカニズムと全く
+異なっています。全ての同時スキャンが完了するまでは、削除されたページにXIDを
+スタンプし、リンク先の周りで削除されたページを完全なまま保持します。)
+
+
+Compatibility
+-------------
+
+互換性
+------
+
+
+Compression of TIDs was introduced in 9.4. Some GIN indexes could remain in
+uncompressed format because of pg_upgrade from 9.3 or earlier versions.
+For compatibility, old uncompressed format is also supported. Following
+rules are used to handle it:
+
+9.4でTIDの圧縮を導入しました。一部のGINインデックスは9.3またはそれ以前の
+バージョンからのpg_upgradeが原因で非圧縮形式のままとなります。互換性の為に
+古い非圧縮形式もサポートされています。次のルールは、それを処理する為に使用
+されています:
+
+
+* GIN_ITUP_COMPRESSED flag marks index tuples that contain a posting list.
+This flag is stored in high bit of ItemPointerGetBlockNumber(&itup->t_tid).
+Use GinItupIsCompressed(itup) to check the flag.
+
+* GIN_ITUP_COMPRESSEDフラグはポスティングリストが含まれているインデックスタプルを
+マークします。このフラグは、ItemPointerGetBlockNumber(&itup->t_tid)の上位ビットに
+格納されます。フラグをチェックする為に、GinItupIsCompressed(itup)を使用して下さい。
+
+
+* Posting tree pages in the new format are marked with the GIN_COMPRESSED flag.
+  Macros GinPageIsCompressed(page) and GinPageSetCompressed(page) are used to
+  check and set this flag.
+
+* 新しい形式のポスティングツリーページは、GIN_COMPRESSEDフラグでマークされます。
+  マクロGinPageIsCompressed(page)とGinPageSetCompressed(page)はこのフラグの
+  チェックや設定に使用されています。
+
+
+* All scan operations check format of posting list add use corresponding code
+to read its content.
+
+* 全てのスキャン操作は、ポスティングリストの形式がその内容を読み取る為に
+使用する対応したコードが追加されている事をチェックします。
+
+
+* When updating an index tuple containing an uncompressed posting list, it
+will be replaced with new index tuple containing a compressed list.
+
+* 非圧縮のポスティングリストを含んでいるインデックスタプルが更新される時に、
+圧縮したリストを含んだ新しいインデックスタプルと入れ替えられます。
+
+
+* When updating an uncompressed posting tree leaf page, it's compressed.
+
+* 非圧縮のポスティングツリーリーフページを更新する時に、圧縮します。
+
+
+* If vacuum finds some dead TIDs in uncompressed posting lists, they are
+converted into compressed posting lists. This assumes that the compressed
+posting list fits in the space occupied by the uncompressed list. IOW, we
+assume that the compressed version of the page, with the dead items removed,
+takes less space than the old uncompressed version.
+
+* vacuumが非圧縮のポスティングリスト内のいくつかの不要なTIDを見付けた場合、
+それらは圧縮されたポスティングリストに変換されます。これは、圧縮された
+ポスティングリストが非圧縮のリストが占める領域に収まる事を想定しています。
+つまり、我々は不要なアイテムを削除し、パージを圧縮したバージョンは、古い
+非圧縮のバージョンより少ない領域を取る事を想定しています。
+
+
+Limitations
+-----------
+
+制限事項
+--------
+
+
+  * Gin doesn't use scan->kill_prior_tuple & scan->ignore_killed_tuples
+  * Gin searches entries only by equality matching, or simple range
+    matching using the "partial match" feature.
+
+  * Ginはスキャンを使用しません->kill_prior_tuple & scan->ignore_killed_tuples
+  * Ginは「partial match」機能を使用して、等価マッチングまたは単純な範囲
+    マッチングによる項目を検索します。
+
+
+TODO
+----
+
+TODO
+----
+
+Nearest future:
+
+最も近い将来:
+
+
+  * Opclasses for more types (no programming, just many catalog changes)
+
+  * より多くの種類の演算子クラス(プログラム不要、ちょうど多くのカタログ変更)
+
+
+Distant future:
+
+非常に先の将来:
+
+
+  * Replace B-tree of entries to something like GiST
+
+  * GiSTの様なものにB-treeの項目を置き換える
+
+
+Authors
+-------
+
+作者
+----
+
+
+Original work was done by Teodor Sigaev (teodor@sigaev.ru) and Oleg Bartunov
+(oleg@sai.msu.su).

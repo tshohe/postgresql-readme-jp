@@ -1,0 +1,33 @@
+src/port/README
+
+libpgport
+=========
+
+libpgportは特殊な対応をしなければなりません。それは、ライブラリと
+アプリケーションに機能を提供します。しかし、2つの複雑さがあります:
+
+1) ライブラリはライブラリと全く同じフラグを使用してコンパイルされた
+オブジェクトファイルを使用しなければなりません。libpgportは同じフラグを
+使用しない場合があるので、個々のライブラリのオブジェクトファイルを
+再コンパイルする必要があります。これは、リンク行から-lpgportを削除する
+事によって行われます:
+
+        # Need to recompile any libpgport object files
+        LIBS := $(filter-out -lpgport, $(LIBS))
+
+および、オブジェクトファイルを再コンパイルする為に基盤を追加します:
+
+        OBJS= execute.o typename.o descriptor.o data.o error.o prepare.o memory.o \
+                connect.o misc.o path.o exec.o \
+                $(filter snprintf.o, $(LIBOBJS))
+
+問題は、オブジェクトファイルを追加する必要がある時のテストが存在しない事ですが、
+ユーザアプリケーションをリンクする時に見つからない機能は表示されます。
+
+2) アプリケーションの為に、我々は-lpgの前に-lpgportを使用しますので、
+libpgportからの静的ファイルが最初にリンクされています。これは、
+アプリケーションがlibpqによって_used_であるシンボルに依存する事を避ける為の
+もので、libpqからエクスポートする事を意図するものではありません。libpqの
+libpgportの使用率が時間と共に変化するので、その様な依存性が問題となって
+おります。Win32、LinuxおよびDarwinはlibpqよりエクスポートされたシンボルを
+制御する為にエクスポートリストを使用します。

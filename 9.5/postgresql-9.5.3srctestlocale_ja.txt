@@ -1,0 +1,29 @@
+src/test/locale/README
+
+ロケール
+========
+
+このディレクトリはロケールの為の一連のテストが含まれています。私は
+libcでのCTYPEのサポートとインストールされたロケールデータをテストする
+為に1つのCプログラムtest-ctype.cを提供しました。それからそのテストを
+照合する為にtest-sort.plとtest-sort.pyがあります。
+
+To run a test for some locale run
+    make check-$locale
+for example
+    make check-koi8-r
+
+現在、利用可能ないくつかのロケールの為のテストしかありません。'runall'
+スクリプトは、libcとロケールデータ、test-sort.pl(Pythonインタプリタが
+インストールされている場合、test-sort.pyのコメントを解除)をテストする為の
+test-ctypeを呼び出し、提供されたSQLスクリプトファイルをPostgreSQL上で
+テストします。
+
+ロケールテストを追加するには、$localeディレクトリを1つ作成する必要があり、
+koi8-r/*と同じMakefile(とその他のファイル)を作成します。実際に最も単純な
+(私が思う)方法はkoi8-rディレクトリをコピーし、edit/ とファイルを置き換える
+事です。
+
+Oleg.
+----
+    Oleg Broytmann     http://members.xoom.com/phd2/     phd2@earthling.net
