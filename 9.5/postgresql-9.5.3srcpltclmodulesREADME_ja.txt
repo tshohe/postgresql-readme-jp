@@ -1,0 +1,22 @@
+src/pl/tcl/modules/README
+
+Regular Tcl scripts of any size (over 8K :-) can be loaded into the table pltcl_modules using the pltcl_loadmod script.
+The script checks the modules that the procedure names don't overwrite existing ones before doing anything.
+They also check for global variables created at load time.
+
+pltcl_loadmodスクリプトを使用して、任意のサイズ（8K以上)の定期的なTclスクリプトをpltcl_modulesテーブルの中にロードすることができます。
+このスクリプトは、何かする前にプロシージャ名が既存のもの上書きしないというモジュールをチェックします。
+また、読み込み時に作成されたグローバル変数もチェックします。
+
+All procedures defined in the module files are automatically added to the table pltcl_modfuncs.
+This table is used by the unknown procedure to determine if an unknown command can be loaded by sourcing a module. In that case the unknown procedure will silently source in the module and reexecute the original command that invoked unknown.
+
+I know, this readme should be more explanatory - but time.
+
+Jan
+
+モジュールファイルで定義された全てのプロシージャは、自動でpltcl_modfuncsテーブルに追加されます。
+このテーブルは不明なコマンドをモジュールの調達によってロード可能か判断するために、不明なプロシージャから使用されます。
+この場合、不明なプロシージャはモジュール内で暗黙的にソースを取得し、不明な呼び出し元のコマンドを再実行します。
+
+私はこのreadmeがより説明される必要があると知っています。しかし時間が。

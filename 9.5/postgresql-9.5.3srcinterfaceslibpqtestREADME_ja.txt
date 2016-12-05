@@ -1,0 +1,11 @@
+This is a testsuite for testing libpq URI connection string syntax.
+
+To run the suite, use 'make installcheck' command.
+It works by running 'regress.sh' from this directory with appropriate environment set up,
+which in turn feeds up lines from 'regress.in' to 'uri-regress' test program and compares the output against the correct one in 'expected.out' file.
+
+これはlibpqURI接続文字列構文テストのためのテストスイートです。
+
+スイートを実行するため、’make installcheck’コマンドを使用します。
+それは適切な環境のセットアップと、このディレクトリの’regress.sh’の実行により動作します。
+これは順番に行を'regress.in'から'url-regress'テストプログラムへ投入し、'expected.out'ファイルの正しい一つの出力と比較します。

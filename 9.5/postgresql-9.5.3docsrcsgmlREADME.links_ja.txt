@@ -1,0 +1,66 @@
+<!-- doc/src/sgml/README.links -->
+
+Linking within SGML documents can be confusing, so here is a summary:
+
+SGML文書内部内でのリンクは混乱する可能性があるので、ここでは概要になります。
+
+Intra-document Linking
+文書内リンク
+----------------------
+
+<xref>
+    use to get chapter/section number from the title of the target
+    link, or xreflabel if defined at the target, or refentrytitle if target
+        is a refentry;  has no close tag
+    http://www.oasis-open.org/docbook/documentation/reference/html/xref.html
+
+ターゲットリンクのタイトルからチャプター/セクション番号を取得する為に使用します。
+ターゲットで定義されている場合はxreflabel、ターゲットがrefentryである場合はrefentrytitleを使用します。 閉じタグは持ちません。
+
+<link>
+    use to supply text for the link, requires </link>
+    http://www.oasis-open.org/docbook/documentation/reference/html/link.html
+
+リンクのテキストを提供するために使用します。 </link>タグ（閉じタグ）を必要とします。
+
+linkend=
+    controls the target of the link/xref, required
+
+link/xrefのターゲットを制御します。必須です。
+
+endterm=
+    for <xref>, allows the text of the link/xref to be taken from a
+    different link target title
+
+<xref>タグのため、異なるリンクターゲットタイトルから
+link/xrefのテキスト取得することを許可します。
+
+External Linking
+外部リンク
+----------------
+
+<ulink>
+    like <link>, but uses a URL (not a document target);  requires
+    </ulink>; if no text is specified, the URL appears as the link
+    text
+    http://www.oasis-open.org/docbook/documentation/reference/html/ulink.html
+
+        <link>タグと似ていますが、URL（ドキュメント以外がターゲットのもの）を使用します。
+        </ulink>タグ（閉じタグ）を必要とします。もしテキストが指定されていない場合、
+        URLがリンクテキストとして表示されます。
+
+url=
+    used by <ulink> to specify the URL, required
+        URLを指定するために<ulink>タグによって使用されます。必須です。
+
+Guidelines
+ガイドライン
+----------
+
+o  If you want to supply text, use <link>, else <xref>
+    もしあなたがテキストを提供したいのであれば、<link>もしくは<xref>を使用します。
+o  Do not use text with <ulink> so the URL appears in printed output
+    <ulink>タグを付与したテキストを使用しないので、印刷出力内でURLが表示されます。
+o  Specific nouns like GUC variables, SQL commands, and contrib modules
+   usually have xreflabels
+   GUC変数のような特定の名詞、SQLコマンド、contribモジュールは大抵xreflabelsを持ちます。

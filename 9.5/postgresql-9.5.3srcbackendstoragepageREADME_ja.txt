@@ -1,0 +1,90 @@
+src/backend/storage/page/README
+
+Checksums
+チェックサム
+---------
+
+Checksums on data pages are designed to detect corruption by the I/O system.
+We do not protect buffers against uncorrectable memory errors, since these
+have a very low measured incidence according to research on large server farms,
+http://www.cs.toronto.edu/~bianca/papers/sigmetrics09.pdf, discussed
+2010/12/22 on -hackers list.
+
+データページ上のチェックサムはI/Oシステムの破損を検知するために設計されています。
+私たちは正常ではないメモリーエラーからバッファを保護しません。
+それは、大規模サーバファームに関する調査では、発生率が非常に低いためです。
+http://www.cs.toronto.edu/~bianca/papers/sigmetrics09.pdf,
+hackers list上で2010/12/22に議論されました。
+
+Current implementation requires this be enabled system-wide at initdb time.
+
+現在の実装では、initdb時にそれがシステム全体で有効である必要があります。
+
+The checksum is not valid at all times on a data page!!
+The checksum is valid when the page leaves the shared pool and is checked
+when it later re-enters the shared pool as a result of I/O.
+We set the checksum on a buffer in the shared pool immediately before we
+flush the buffer. As a result we implicitly invalidate the page's checksum
+when we modify the page for a data change or even a hint. This means that
+many or even most pages in shared buffers have invalid page checksums,
+so be careful how you interpret the pd_checksum field.
+
+チェックサムはデータページ上で常に有効ではありません！！
+チェックサムは、ページが共有プールを離れるときに有効で、I / Oの結果として後で共有プールに再入力されるときにチェックされます。
+バッファをフラッシュする直前に、共有プール内のバッファにチェックサムを設定します。
+その結果、データ変更やヒントのページを変更するときに、ページのチェックサムを暗黙的に無効にします。
+これは、共有バッファ内の多くの、またはほとんどのページに無効なページチェックサムがあることを意味します。したがって、pd_checksumフィールドの解釈方法には注意が必要です。
+
+That means that WAL-logged changes to a page do NOT update the page checksum,
+so full page images may not have a valid checksum. But those page images have
+the WAL CRC covering them and so are verified separately from this
+mechanism. WAL replay should not test the checksum of a full-page image.
+
+つまり、WALで記録されたページの変更はページチェックサムを更新しないため、フルページイメージには有効なチェックサムがない可能性があります。しかし、これらのページイメージにはWAL CRCが含まれているため、このメカニズムとは別に検証されます。 WALリプレイは、フルページイメージのチェックサムをテストすべきではありません。
+
+The best way to understand this is that WAL CRCs protect records entering the
+WAL stream, and data page verification protects blocks entering the shared
+buffer pool. They are similar in purpose, yet completely separate.  Together
+they ensure we are able to detect errors in data re-entering
+PostgreSQL-controlled memory. Note also that the WAL checksum is a 32-bit CRC,
+whereas the page checksum is only 16-bits.
+
+これを理解する最良の方法は、WAL CRCがWALストリームに入るレコードを保護し、データページの検証が共有バッファプールに入るブロックを保護することです。彼らは目的が似ていますが、完全に分離しています。 PostgreSQLで制御されるメモリにデータを再入力する際のエラーを確実に検出します。 WALチェックサムは32ビットCRCであるのに対し、ページチェックサムは16ビットのみであることにも注意してください。
+
+Any write of a data block can cause a torn page if the write is unsuccessful.
+Full page writes protect us from that, which are stored in WAL.  Setting hint
+bits when a page is already dirty is OK because a full page write must already
+have been written for it since the last checkpoint.  Setting hint bits on an
+otherwise clean page can allow torn pages; this doesn't normally matter since
+they are just hints, but when the page has checksums, then losing a few bits
+would cause the checksum to be invalid.  So if we have full_page_writes = on
+and checksums enabled then we must write a WAL record specifically so that we
+record a full page image in WAL.  Hint bits updates should be protected using
+MarkBufferDirtyHint(), which is responsible for writing the full-page image
+when necessary.
+
+書き込みが失敗した場合、データブロックの書き込みによってページが破れてしまうことがあります。
+完全なページ書き込みは、WALに格納されている私たちを守ってくれます。ページがすでに汚れているときのヒントビットの設定は、最後のチェックポイント以降にページ全体の書き込みが既に行われている必要があるため、OKです。クリーンなページにヒントビットを設定すると、ページが破れてしまう可能性があります。これは単なるヒントなので大したことではありませんが、ページにチェックサムがある場合、数ビットを失うとチェックサムが無効になります。したがって、full_page_writes = onでチェックサムが有効な場合、WALにフルページイメージを記録できるようにWALレコードを具体的に記述する必要があります。ヒントビットの更新は、必要に応じてフルページイメージを書き込むMarkBufferDirtyHint()を使用して保護する必要があります。
+
+Note that when we write a page checksum we include the hopefully zeroed bytes
+that form the hole in the centre of a standard page. Thus, when we read the
+block back from storage we implicitly check that the hole is still all zeroes.
+We do this to ensure that we spot errors that could have destroyed data even
+if they haven't actually done so. Full page images stored in WAL do *not*
+check that the hole is all zero; the data in the hole is simply skipped and
+re-zeroed if the backup block is reapplied. We do this because a failure in
+WAL is a fatal error and prevents further recovery, whereas a checksum failure
+on a normal data block is a hard error but not a critical one for the server,
+even if it is a very bad thing for the user.
+
+ページチェックサムを書くときに、標準ページの中央に穴を形成することを期待しているバイトが含まれていることに注意してください。したがって、ストレージからブロックを読み取ったとき、暗黙のうちに穴がまだすべてゼロであることがチェックされます。
+私たちは、データを破壊した可能性のあるエラーが実際には起こっていないとしても、それを発見するためにこれを行います。 WALに格納されたフルページ画像は、穴がすべてゼロでないことを確認しません。バックアップブロックが再適用された場合、穴のデータは単純にスキップされ、再ゼロ化されます。これは、WALの障害が致命的なエラーであり、それ以上の復旧を妨げるためです。通常のデータブロックのチェックサム障害は、サーバーにとって重大なエラーではありませんが、ユーザーにとって非常によくないことです。
+
+New WAL records cannot be written during recovery, so hint bits set during
+recovery must not dirty the page if the buffer is not already dirty, when
+checksums are enabled.  Systems in Hot-Standby mode may benefit from hint bits
+being set, but with checksums enabled, a page cannot be dirtied after setting a
+hint bit (due to the torn page risk). So, it must wait for full-page images
+containing the hint bit updates to arrive from the master.
+
+回復中に新しいWALレコードを書き込むことはできないため、バッファがまだ汚れていない場合、チェックサムが有効な場合、回復中に設定されたヒントビットはページをダーティにしてはなりません。ホットスタンバイモードのシステムでは、ヒントビットが設定されているとメリットがありますが、チェックサムを有効にすると、ヒントビットを設定した後でページをダーティにすることはできません。したがって、マスターから到着するヒントビットの更新を含むフルページイメージを待つ必要があります。

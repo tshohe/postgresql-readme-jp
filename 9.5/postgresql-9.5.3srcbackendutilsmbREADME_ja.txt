@@ -1,0 +1,50 @@
+src/backend/utils/mb/README
+
+Encodings
+=========
+
+エンコーディング
+
+encnames.c:    public functions for both the backend and the frontend.
+
+                        バックエンドとフロントエンド両方のpublic関数
+
+conv.c:        static functions and a public table for code conversion
+
+                        static関数とコード変換用のpublicテーブル
+
+wchar.c:    mostly static functions and a public table for mb string and
+        multibyte conversion
+
+                主に静的関数とmbstringとマルチバイト変換のためのpublicテーブル
+
+mbutils.c:    public functions for the backend only.
+        requires conv.c and wchar.c
+
+                バックエンドだけのpublic関数
+                conv.cとwchar.cが必要です。
+
+wstrcmp.c:    strcmp for mb
+
+                        mbのためのstrcmp
+
+wstrncmp.c:    strncmp for mb
+
+                        mbのためのstrncmp
+
+win866.c:    a tool to generate KOI8 <--> CP866 conversion table
+
+                KOI8 <--> CP866 変換テーブルを生成するツール
+
+iso.c:        a tool to generate KOI8 <--> ISO8859-5 conversion table
+
+                        KOI8 <--> ISO8859-5 変換テーブルを生成するツール
+
+win1251.c:    a tool to generate KOI8 <--> CP1251 conversion table
+
+                        KOI8 <--> CP1251 変換テーブルを生成するツール
+
+Introduction
+導入
+------------
+    http://www.cprogramming.com/tutorial/unicode.html
