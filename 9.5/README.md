@@ -11,7 +11,7 @@
 |2|README.git|gitリポジトリにINSTALLファイルがない説明|14||
 |3|contrib/README|contribツールの概要(詳細はドキュメントに移管)|28||
 |4|contrib/start-scripts/osx/README|OS X用の起動スクリプト|3||
-|5|doc/src/sgml/README.links|SGML文書のリンク|46||
+|5|doc/src/sgml/README.links|SGML文書のリンク|46|○|
 |6|src/backend/access/gin/README|GINインデックス|379|○|
 |7|src/backend/access/gist/README|GiSTインデックス|419||
 |8|src/backend/access/hash/README|HASHインデックス|467||
@@ -36,10 +36,10 @@
 |27|src/backend/storage/lmgr/README|内部レベルのロック機構|639||
 |28|src/backend/storage/lmgr/README-SSI|SSI TX分離レベル|629||
 |29|src/backend/storage/lmgr/README.barrier|メモリバリア|199||
-|30|src/backend/storage/page/README|ページ管理|63||
+|30|src/backend/storage/page/README|ページ管理|63|○|
 |31|src/backend/storage/smgr/README|ストレージマネージャ|58||
 |32|src/backend/utils/fmgr/README|SQL関数呼び出し機構|556||
-|33|src/backend/utils/mb/README|マルチバイト文字関連ソースの説明|20||
+|33|src/backend/utils/mb/README|マルチバイト文字関連ソースの説明|20|○|
 |34|src/backend/utils/mb/conversion_procs/README.euc_jp|エンコード変換関数の追加方法|83||
 |35|src/backend/utils/misc/README|GUCパラメータ実装|295|○|
 |36|src/backend/utils/mmgr/README|メモリアロケータ|448||
@@ -49,10 +49,10 @@
 |40|src/interfaces/ecpg/preproc/README.parser|ECPG特有のパース処理|42||
 |41|src/interfaces/ecpg/test/connect/README|接続テストの説明|9||
 |42|src/interfaces/libpq/README|ディレクトリの内容|3||
-|43|src/interfaces/libpq/test/README|libpq用テストスイート|7||
+|43|src/interfaces/libpq/test/README|libpq用テストスイート|7|○|
 |44|src/pl/plperl/README|PL/Perl|10||
 |45|src/pl/plpython/expected/README|PL/Pythonのバージョン別テスト予想結果ファイル|12||
-|46|src/pl/tcl/modules/README|PL/Tcl|18||
+|46|src/pl/tcl/modules/README|PL/Tcl|18|○|
 |47|src/port/README|環境差吸収用ライブラリlibpgport|32|○|
 |48|src/test/isolation/README|テストツール（TX分離性）|117|○|
 |49|src/test/locale/README|テストツール（ロケール）|28|○|
