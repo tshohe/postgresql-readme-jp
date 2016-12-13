@@ -1,0 +1,6 @@
+src/test/locale/koi8-to-win1251/README
+
+koi8-to-win1251のテストです。データベースはkoi8 (createdb -E koi8)で作成される
+必要があり、テストはkoi8-to-win1251変換機能を使用しています。
+Oleg Broytmann <phd2@earthling.net>によって作成されます。エンコード変換のコードは
+Tatsuo Ishii <t-ishii@sra.co.jp>によって作成されます。
