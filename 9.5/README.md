@@ -28,7 +28,7 @@
 |19|src/backend/optimizer/plan/README|プランナ|158|○|
 |20|src/backend/parser/README|パーサ|30|○|
 |21|src/backend/port/darwin/README|Darwin依存のコード|36||
-|22|src/backend/regex/README|正規表現|371||
+|22|src/backend/regex/README|正規表現|371|○|
 |23|src/backend/replication/README|レプリケーション|99|○|
 |24|src/backend/snowball/README|ワードステミング|49||
 |25|src/backend/storage/buffer/README|共有バッファ管理|282||
@@ -58,7 +58,7 @@
 |49|src/test/locale/README|テストツール（ロケール）|28|○|
 |50|src/test/locale/de_DE.ISO8859-1/README|テストツール（de_DE.ISO8859-1ロケール）|4|○|
 |51|src/test/locale/gr_GR.ISO8859-7/README|テストツール（gr_GR.ISO8859-7ロケール）|4|○|
-|52|src/test/locale/koi8-to-win1251/README|テストツール（koi8-to-win1251ロケール）|6||
+|52|src/test/locale/koi8-to-win1251/README|テストツール（koi8-to-win1251ロケール）|6|○|
 |53|src/test/mb/README|テストツール（マルチバイト文字）|10||
 |54|src/test/regress/README|テストツール（スレッド）|3||
 |55|src/test/thread/README|テストツール（ロケール）|54|○|
